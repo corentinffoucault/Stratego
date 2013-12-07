@@ -1,0 +1,247 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>jQuery UI Draggable - Default functionality</title>
+<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+<script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+<style>
+table {float: left; margin-right: 10px;}
+#partGauche { float: left;}
+.stocker { width:500px;}
+.stockre {float: left;margin-right: -25px;}
+.zoomer {float: left;margin-right: 2px;margin-left: 27px;}
+.zoomerFirst {float: left;margin-right: 2px;}
+#presenteur {float: left; margin-top: 20px;}
+table { border-collapse:collapse; border-spacing: 0;}  
+td {  width: 50px; height: 50px; border:  1px solid #000000; padding: 0px;}
+div {  width: 50px; height: 50px;  margin: 0 ;}
+.pion { width: 50px; height: 50px;}
+.map { position : absolute;  z-index : 1; width: 50px; height: 50px;}
+.possible { width: 15px; height: 15px; border:  1px solid #000000; padding: 0px;background-color: #FF0000 }
+</style>
+<script>
+ 
+ 
+ 
+$(function() {
+ 
+ 
+	var current;
+	var isEmpty=true;
+	var draging=false;
+	var nbPieceMax=3;
+
+
+	function zoomIn(cible){
+		$("#presenteur").prepend('<img id="zoom" src="'+cible.attr("src")+'"/>');
+	}	
+	function zoomOut(cible){
+		$("#zoom").remove();
+	}	
+
+		$( "img" ).mouseenter(function( event ) {
+			if(!draging){
+				zoomIn($(this));
+				if($(this).parent().hasClass("stockre")){
+					$(this).parent().removeClass("stockre");
+					if($(this).parent().index()==0 || $(this).parent().parent().children($(this).parent().index()-1).width()==0){
+						$(this).parent().addClass("zoomerFirst");
+					}else{
+						$(this).parent().addClass("zoomer");
+					}
+				}
+			}
+		});
+		$( "img" ).mouseleave(function( event ) {
+			if(!draging){
+				zoomOut($(this));
+				reinitStocker($(this).parent());
+			}
+		});
+$( document ).ready(function() {
+	var index,id;
+		creationMap();
+		
+		$( ".moover" ).draggable({  revert: function(){
+								effacerTrajet($(this),1);
+								draging=false;
+								zoomOut($(this));
+								return true;
+								},
+							    drag: function( event, ui ) {
+								draging=true;
+									if($(this).children().length){
+										current = $(this);
+										isEmpty=false;
+										affichageTrajet($(this),1);
+									}else{
+										isEmpty=true;
+									}
+								}
+		});
+		$( ".terrain" ).droppable({
+								drop: function( event, ui ) {
+									var child=current.children();
+									reinitStocker(current);
+									draging=false;
+									if(!isEmpty && ($(this).parent().hasClass("possible") || current.parent().hasClass("stocker")  )){
+										if($(this).children().size()==0){
+											current.children().detach();
+											$(this).append(child);
+										}else if(current.hasClass("terrain")){
+											console.log(child);
+											insertAtIndex(parseInt(child.attr("id").split("img")[1]),child,$(this));
+										}
+									}
+									if(current.parent().hasClass("stocker")){
+										ranger(current);
+									}
+									effacerTrajet(current,1);
+								}
+		});
+	});
+	
+	
+	
+	function reinitStocker(cible){
+				
+		if(cible.hasClass("zoomer") || cible.hasClass("zoomerFirst") ){
+			cible.addClass("stockre");
+			cible.removeClass("zoomer");
+			cible.removeClass("zoomerFirst");
+		}
+	}
+	
+	
+	function ranger(cible){
+				cible.width(0);
+	}
+	
+	function affichageTrajet(div,distance){
+		if(div.hasClass("terrain")){
+			var lc=div.parent().attr("id").split("_");
+			changeLigneDroitClass(parseInt(lc[0]),parseInt(lc[1]),distance);
+			changeLigneGaucheClass(parseInt(lc[0]),parseInt(lc[1]),distance);
+			changecolonneBasClass(parseInt(lc[0]),parseInt(lc[1]),distance);
+			changecolonneHautClass(parseInt(lc[0]),parseInt(lc[1]),distance);
+		}
+	}
+	
+	
+	function effacerTrajet(div,distance){
+		if(div.hasClass("terrain")){
+			var lc=div.parent().attr("id").split("_");
+			removeClass((parseInt(lc[0])),(parseInt(lc[1])),distance);
+			removeClass((parseInt(lc[0])),(parseInt(lc[1])),distance);
+			removeClass((parseInt(lc[0])),(parseInt(lc[1])),distance);
+			removeClass((parseInt(lc[0])),(parseInt(lc[1])),distance);
+		}
+	}
+	
+	function changeLigneDroitClass(ligne,colonne,distance){
+		var i=1;
+		while(i<=distance){
+			if(!$("#"+(ligne+1)+'_'+colonne).hasClass("infranchissable")){
+				$("#"+(ligne+1)+'_'+colonne).addClass("possible");
+			}
+			i++;
+		}
+	}
+	
+	
+	function changeLigneGaucheClass(ligne,colonne,distance){
+	var i=1;
+		while(i<=distance){
+			if(!$("#"+(ligne-1)+'_'+colonne).hasClass("infranchissable")){
+				$("#"+(ligne-1)+'_'+colonne).addClass("possible");
+			}
+			i++;
+		}
+	}
+	
+	function changecolonneBasClass(ligne,colonne,distance){
+	var i=1;
+		while(i<=distance){
+			if(!$("#"+ligne+'_'+(colonne-1)).hasClass("infranchissable")){
+				$("#"+ligne+'_'+(colonne-1)).addClass("possible");
+			}
+			i++;
+		}
+	}
+	
+	function changecolonneHautClass(ligne,colonne,distance){
+	var i=1;
+		while(i<=distance){
+			if(!$("#"+ligne+'_'+(colonne+1)).hasClass("infranchissable")){
+				$("#"+ligne+'_'+(colonne+1)).addClass("possible");
+			}
+			i++;
+		}
+	}
+	function removeClass(ligne,colonne,distance){
+		for(var i=1;i<=distance;i++){
+			$("#"+(ligne+i)+'_'+colonne).removeClass("possible");
+		}
+		for(var i=1;i<=distance;i++){
+			$("#"+(ligne-i)+'_'+colonne).removeClass("possible");
+		}
+		for(var i=1;i<=distance;i++){
+			$("#"+ligne+'_'+(colonne-i)).removeClass("possible");
+		}
+		for(var i=1;i<=distance;i++){
+			$("#"+ligne+'_'+(colonne+i)).removeClass("possible");
+		}
+	}
+	
+	function creationMap() {
+		for(var i=0;i<11;i++){
+			$("#tbodytest").append('<tr id="'+i+'"></tr>');
+			for(var j=0;j<11;j++){
+				index=i+'_'+j;
+				$("#tbodytest > tr#"+i).append('<td id="'+index+'"><div id="terrain'+index+'" class="terrain moover"></div></td>');
+			}
+		}
+	}
+	
+	function insertAtIndex(i,child,oldParent) {
+		var newOffset = $("#stocker\\["+i+"\\]").offset();
+		var oldOffset = current.parent().offset();
+		current.animate({"top": newOffset.top-oldOffset.top, "left":newOffset.left-oldOffset.left}, 1000, function(){
+			child.detach();
+			$("#stocker\\["+i+"\\]").append(child);
+			$("#stocker\\["+i+"\\]").width(50);
+		});
+	}
+});
+</script>
+</head>
+<body>
+ 
+<p>Stratego :</p>
+<table id="maper" cellspacing="0" class="partEcran">
+		<tbody id="tbodytest">
+	</tbody>
+</table>
+ 
+ 
+<div id="partGauche">
+	<div id="stocker" class="stocker">
+		<div id="stocker[1]" class="test stockre moover">
+			<img id="img1" src="img_logo.gif" class="demineur pion"/>
+		</div>
+		<div id="stocker[2]" class="test stockre moover">
+			<img id="img2" src="img_logo.gif" class="scout pion"/>
+		</div>
+		<div id="stocker[3]" class="test stockre moover">
+			<img id="img3" src="img_logo.gif" class="bombe pion"/>
+		</div>
+	</div>
+		
+	<div id="presenteur">
+			
+	</div>
+</div>	
+ 
+</body>
+</html>
