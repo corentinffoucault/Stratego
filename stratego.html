@@ -16,7 +16,8 @@ table {float: left; margin-right: 10px;}
 table { border-collapse:collapse; border-spacing: 0;}  
 td {  width: 50px; height: 50px; border:  1px solid #000000; padding: 0px;}
 div {  width: 50px; height: 50px;  margin: 0 ;}
-.pion { width: 50px; height: 50px;}
+.taillePion { width: 50px; height: 50px;}
+.tailleVide { width: 0px; height: 0px;}
 .map { position : absolute;  z-index : 1; width: 50px; height: 50px;}
 .possible { width: 15px; height: 15px; border:  1px solid #000000; padding: 0px;background-color: #FF0000 }
 </style>
@@ -63,49 +64,106 @@ $( document ).ready(function() {
 	var index,id;
 		creationMap();
 		
-		$( ".moover" ).draggable({  revert: function(){
-								effacerTrajet($(this),1);
-								draging=false;
-								zoomOut($(this));
-								return true;
-								},
-							    drag: function( event, ui ) {
-								draging=true;
-									if($(this).children().length){
-										current = $(this);
-										isEmpty=false;
-										affichageTrajet($(this),1);
-									}else{
-										isEmpty=true;
-									}
-								}
+		$( ".moover" ).draggable({
+			revert: function(){
+				effacerTrajet($(this),parseInt($(this).children().attr("data-pion-trajet")));
+				draging=false;
+				zoomOut($(this));
+				return true;
+			},
+			drag: function( event, ui ) {
+				draging=true;
+				if($(this).children().length){
+					current = $(this);
+					isEmpty=false;
+					affichageTrajet($(this),parseInt($(this).children().attr("data-pion-trajet")));
+				}else{
+					isEmpty=true;
+				}
+			}
 		});
 		$( ".terrain" ).droppable({
-								drop: function( event, ui ) {
-									var child=current.children();
-									reinitStocker(current);
-									draging=false;
-									if(!isEmpty && ($(this).parent().hasClass("possible") || current.parent().hasClass("stocker")  )){
-										if($(this).children().size()==0){
-											current.children().detach();
-											$(this).append(child);
-										}else if(current.hasClass("terrain")){
-											console.log(child);
-											insertAtIndex(parseInt(child.attr("id").split("img")[1]),child,$(this));
-										}
-									}
-									if(current.parent().hasClass("stocker")){
-										ranger(current);
-									}
-									effacerTrajet(current,1);
-								}
+			drop: function( event, ui ) {
+				var child=current.children(':first');
+				reinitStocker(current);
+				draging=false;
+				if(!isEmpty && ($(this).parent().hasClass("possible") || current.parent().hasClass("stocker")  )){
+					if($(this).children().size()==0){
+						lie(current,$(this),child);
+					}else if(current.hasClass("terrain")){
+						//insertAtIndex(child);
+						combat(child,$(':first', $(this)),$(this),current);
+					}
+				}
+				if(current.parent().hasClass("stocker")){
+					ranger(current);
+				}
+				effacerTrajet(current,parseInt($(this).children().attr("data-pion-trajet")));
+			}
 		});
 	});
 	
+
 	
+	function insertAtIndex(child,current,secteur,vainqueur) {
+		var i=parseInt(child.attr("id").split("img")[1])
+		var newOffset = $("#stocker\\["+i+"\\]").offset();
+		var oldOffset = child.parent().parent().offset();
+		var parent=child.parent();
+		$("#stocker\\["+i+"\\]").removeClass("tailleVide");
+		$("#stocker\\["+i+"\\]").addClass("taillePion");
+		parent.animate({"top": newOffset.top-oldOffset.top, "left":newOffset.left-oldOffset.left}, 1000, function(){
+			child.detach();
+			$("#stocker\\["+i+"\\]").append(child);
+			parent.css("left","0px");
+			parent.css("top","0px");
+			
+			lie(current,secteur,vainqueur);
+		});
+	}
+	
+	function combat(attaquant,defenseur,secteur,current){
+		var defenseurType = defenseur.attr("data-pion-type");
+		var attaquantType = attaquant.attr("data-pion-type");
+		var vainqueur=1;
+		if(attaquantType=="S" && defenseurType=="0"){
+			vainqueur=attaquant;
+			perdant=defenseur;
+		} else if(defenseurType=="B"){
+			if(attaquantType=="8"){
+				vainqueur=attaquant;
+				perdant=defenseur;
+			}else{
+				vainqueur=defenseur;
+				perdant=attaquant;
+			}
+		} else if(defenseurType=="D"){
+			vainqueur=attaquant;
+			perdant=defenseur;
+		} else {
+			if(parseInt(attaquantType)>parseInt(defenseurType) || defenseurType=="S"){
+				vainqueur=attaquant;
+				perdant=defenseur;
+			}else if(parseInt(attaquantType)==parseInt(defenseurType)){
+				insertAtIndex(attaquant,null,null,null);
+				insertAtIndex(defenseur);
+			}else{
+				vainqueur=defenseur;
+				perdant=attaquant;
+			}
+		}
+		if(vainqueur!=1){
+			insertAtIndex(perdant,current,secteur,vainqueur);
+		}
+	}
+	
+	
+	function lie(current,cible,child){
+			current.children().detach();
+			cible.append(child);
+	}
 	
 	function reinitStocker(cible){
-				
 		if(cible.hasClass("zoomer") || cible.hasClass("zoomerFirst") ){
 			cible.addClass("stockre");
 			cible.removeClass("zoomer");
@@ -115,7 +173,8 @@ $( document ).ready(function() {
 	
 	
 	function ranger(cible){
-				cible.width(0);
+			cible.addClass("tailleVide");
+			cible.removeClass("taillePion");
 	}
 	
 	function affichageTrajet(div,distance){
@@ -128,91 +187,68 @@ $( document ).ready(function() {
 		}
 	}
 	
-	
 	function effacerTrajet(div,distance){
 		if(div.hasClass("terrain")){
 			var lc=div.parent().attr("id").split("_");
-			removeClass((parseInt(lc[0])),(parseInt(lc[1])),distance);
-			removeClass((parseInt(lc[0])),(parseInt(lc[1])),distance);
-			removeClass((parseInt(lc[0])),(parseInt(lc[1])),distance);
 			removeClass((parseInt(lc[0])),(parseInt(lc[1])),distance);
 		}
 	}
 	
 	function changeLigneDroitClass(ligne,colonne,distance){
 		var i=1;
-		while(i<=distance){
-			if(!$("#"+(ligne+1)+'_'+colonne).hasClass("infranchissable")){
-				$("#"+(ligne+1)+'_'+colonne).addClass("possible");
-			}
+		while(i<=distance && !$("#"+(ligne+i)+'_'+colonne).hasClass("infranchissable")){
+			$("#"+(ligne+i)+'_'+colonne).addClass("possible");
 			i++;
 		}
-	}
-	
+	}	
 	
 	function changeLigneGaucheClass(ligne,colonne,distance){
 	var i=1;
-		while(i<=distance){
-			if(!$("#"+(ligne-1)+'_'+colonne).hasClass("infranchissable")){
-				$("#"+(ligne-1)+'_'+colonne).addClass("possible");
-			}
+		while(i<=distance && !$("#"+(ligne-i)+'_'+colonne).hasClass("infranchissable")){
+			$("#"+(ligne-i)+'_'+colonne).addClass("possible");
 			i++;
 		}
 	}
 	
 	function changecolonneBasClass(ligne,colonne,distance){
 	var i=1;
-		while(i<=distance){
-			if(!$("#"+ligne+'_'+(colonne-1)).hasClass("infranchissable")){
-				$("#"+ligne+'_'+(colonne-1)).addClass("possible");
-			}
+		while(i<=distance && !$("#"+ligne+'_'+(colonne-i)).hasClass("infranchissable")){
+			$("#"+ligne+'_'+(colonne-i)).addClass("possible");
 			i++;
 		}
 	}
 	
 	function changecolonneHautClass(ligne,colonne,distance){
 	var i=1;
-		while(i<=distance){
-			if(!$("#"+ligne+'_'+(colonne+1)).hasClass("infranchissable")){
-				$("#"+ligne+'_'+(colonne+1)).addClass("possible");
-			}
+		while(i<=distance && !$("#"+ligne+'_'+(colonne+i)).hasClass("infranchissable")){
+			$("#"+ligne+'_'+(colonne+i)).addClass("possible");
 			i++;
 		}
 	}
+	
 	function removeClass(ligne,colonne,distance){
 		for(var i=1;i<=distance;i++){
 			$("#"+(ligne+i)+'_'+colonne).removeClass("possible");
-		}
-		for(var i=1;i<=distance;i++){
 			$("#"+(ligne-i)+'_'+colonne).removeClass("possible");
-		}
-		for(var i=1;i<=distance;i++){
 			$("#"+ligne+'_'+(colonne-i)).removeClass("possible");
-		}
-		for(var i=1;i<=distance;i++){
 			$("#"+ligne+'_'+(colonne+i)).removeClass("possible");
 		}
 	}
 	
 	function creationMap() {
-		for(var i=0;i<11;i++){
+		for(var i=0;i<10;i++){
 			$("#tbodytest").append('<tr id="'+i+'"></tr>');
-			for(var j=0;j<11;j++){
+			for(var j=0;j<10;j++){
 				index=i+'_'+j;
-				$("#tbodytest > tr#"+i).append('<td id="'+index+'"><div id="terrain'+index+'" class="terrain moover"></div></td>');
+				if((i==4 || i==5) && (j==2 || j==3 || j==6 || j==7)){
+					$("#tbodytest > tr#"+i).append('<td id="'+index+'" class="infranchissable"><div id="terrain'+index+'" class="terrain moover"></div></td>');
+				}else{
+					$("#tbodytest > tr#"+i).append('<td id="'+index+'"><div id="terrain'+index+'" class="terrain moover"></div></td>');
+				}
 			}
 		}
 	}
 	
-	function insertAtIndex(i,child,oldParent) {
-		var newOffset = $("#stocker\\["+i+"\\]").offset();
-		var oldOffset = current.parent().offset();
-		current.animate({"top": newOffset.top-oldOffset.top, "left":newOffset.left-oldOffset.left}, 1000, function(){
-			child.detach();
-			$("#stocker\\["+i+"\\]").append(child);
-			$("#stocker\\["+i+"\\]").width(50);
-		});
-	}
 });
 </script>
 </head>
@@ -227,14 +263,14 @@ $( document ).ready(function() {
  
 <div id="partGauche">
 	<div id="stocker" class="stocker">
-		<div id="stocker[1]" class="test stockre moover">
-			<img id="img1" src="img_logo.gif" class="demineur pion"/>
+		<div id="stocker[1]" class="stockre moover taillePion">
+			<img id="img1" src="img_logo.gif" class="demineur taillePion" data-pion-type="0" data-pion-trajet="9" />
 		</div>
-		<div id="stocker[2]" class="test stockre moover">
-			<img id="img2" src="img_logo.gif" class="scout pion"/>
+		<div id="stocker[2]" class="stockre moover taillePion">
+			<img id="img2" src="img_logo.gif" class="scout taillePion" data-pion-type="S" data-pion-trajet="1" />
 		</div>
-		<div id="stocker[3]" class="test stockre moover">
-			<img id="img3" src="img_logo.gif" class="bombe pion"/>
+		<div id="stocker[3]" class="stockre moover taillePion">
+			<img id="img3" src="img_logo.gif" class="bombe taillePion" data-pion-type="B" data-pion-trajet="1" />
 		</div>
 	</div>
 		
